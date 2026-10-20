@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realistic Pen Fight</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;padding:20px;min-height:100vh;
+    display:flex;justify-content:center;align-items:center;
+    font-family:Arial,sans-serif;color:white;
+    background:linear-gradient(135deg,#101827,#293a4c)
+}
+.game{width:100%;max-width:850px;background:#182333;
+padding:22px;border-radius:20px;box-shadow:0 20px 50px #0007}
+h1{text-align:center;color:#f6ce77;margin:0 0 8px}
+.sub{text-align:center;color:#bdc9d7;margin-bottom:22px}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.card{background:#27364a;padding:13px;border-radius:12px;text-align:center}
+.bar{height:12px;background:#101722;border-radius:10px;overflow:hidden;margin-top:8px}
+.fill{height:100%;width:100%;background:#48d597;transition:width .3s}
+.fill.red{background:#ff6666}
+.arena{
+    position:relative;height:340px;overflow:hidden;
+    border:10px solid #50321f;border-radius:14px;
+    background:
+    repeating-linear-gradient(2deg,transparent 0px, #54331b22 3px,transparent 6px),
+    repeating-linear-gradient(90deg,#8b5b39 0,#a7774b 45px,#765034 90px);
+    box-shadow:inset 0 0 30px #24130799,0 9px 18px #0005
+}
+.arena:after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,#ffffff13,transparent 38%,#0002);
+}
+.label{position:absolute;top:12px;padding:7px 12px;
+background:#17100ab5;border-radius:7px;z-index:5;font-weight:bold}
+.label.left{left:12%}.label.right{right:12%}
+
+/* কলমের মূল কাঠামো */
+.pen{
+    position:absolute;width:24px;height:150px;top:95px;
+    transform-origin:50% 83%;z-index:3;
+    transition:left .25s ease,top .25s ease,transform .25s ease;
+    filter:drop-shadow(5px 7px 4px #24170f99);
+}
+.pen-body{
+    position:absolute;left:4px;top:12px;width:16px;height:112px;
+    border-radius:6px 6px 4px 4px;
+    overflow:hidden;
+    border:1px solid #151c26;
+    background:linear-gradient(90deg,#101b2a 0%,#3377b4 17%,
+    #a2d9f6 34%,#2677b8 52%,#10385e 78%,#081c32 100%);
+}
+.pen.red .pen-body{
+    background:linear-gradient(90deg,#49151c 0%,#c83b43 18%,
+    #ffb0a8 35%,#e94b50 53%,#8e1d28 79%,#40101a 100%);
+}
+.pen-body:before{
+    content:"";position:absolute;left:5px;top:3px;width:2px;height:88%;
+    background:#ffffff78;border-radius:5px;
+}
+.pen-body:after{
+    content:"";position:absolute;right:3px;top:4px;width:2px;height:80%;
+    background:#0005;
+}
+.pen-cap{
+    position:absolute;top:0;left:3px;width:18px;height:21px;
+    border-radius:7px 7px 3px 3px;
+    border:1px solid #a6b5c2;
+    background:linear-gradient(90deg,#687581,#e5edf2,#8796a2,#3f4d5a);
+}
+.pen-cap:after{
+    content:"";position:absolute;left:6px;top:-4px;width:5px;height:8px;
+    border-radius:3px 3px 0 0;background:#cbd6df;
+}
+.clip{
+    position:absolute;top:18px;left:17px;width:5px;height:37px;
+    border:2px solid #c9d4de;border-left:0;
+    border-radius:0 5px 5px 0;
+}
+.grip{
+    position:absolute;left:5px;top:91px;width:14px;height:24px;
+    border-radius:3px;
+    background:repeating-linear-gradient(0deg,#182431 0 3px,#506273 3px 5px);
+    border:1px solid #18202a;
+}
+.nose{
+    position:absolute;left:7px;top:119px;width:10px;height:18px;
+    background:linear-gradient(90deg,#777,#eee,#aaa,#555);
+    clip-path:polygon(0 0,100% 0,70% 75%,50% 100%,30% 75%);
+}
+.tip{
+    position:absolute;left:11px;top:134px;width:3px;height:8px;
+    background:#222;border-radius:0 0 2px 2px;
+}
+.player{left:27%;transform:rotate(-42deg)}
+.enemy{left:70%;transform:rotate(42deg)}
+.message{
+    position:absolute;left:0;right:0;top:46%;text-align:center;
+    font-weight:900;font-size:clamp(22px,5vw,38px);
+    color:#fff3b0;text-shadow:2px 3px 4px #29170a;z-index:6;
+    pointer-events:none
+}
+.status{text-align:center;min-height:44px;padding:14px 0;color:#d6e1ee;line-height:1.6}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+button{border:0;border-radius:10px;padding:14px 6px;font-size:15px;
+font-weight:bold;cursor:pointer;transition:filter .15s,transform .15s}
+button:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-2px)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.attack{background:#2588ef;color:white}
+.power{background:#ed603b;color:white}
+.defend{background:#239d70;color:white}
+.restart{width:100%;margin-top:10px;background:#f3c45c;color:#21190a}
+.soundrow{display:flex;justify-content:space-between;align-items:center;
+gap:10px;flex-wrap:wrap;margin:14px 0;color:#d1deed;font-size:14px}
+.soundrow button{padding:9px 13px;background:#34465c;color:white}
+.hint{font-size:13px;color:#afc0d2;line-height:1.7;margin-top:16px}
+@media(max-width:480px){
+ .game{padding:13px}.arena{height:300px}
+ .pen{transform-origin:50% 83%}
+ button{font-size:12px}.card{padding:10px}
+}
+</style>
+</head>
+
+<body>
+<main class="game">
+    <h1>✒️ PEN FIGHT</h1>
+    <p class="sub">3D Pen Battle Arena</p>
+
+    <section class="scores">
+        <div class="card">
+            <b>🔵 YOU</b>
+            <div class="bar"><div id="phbar" class="fill"></div></div>
+            <p>HP: <b id="php">100</b></p>
+        </div>
+        <div class="card">
+            <b>🔴 COMPUTER</b>
+            <div class="bar"><div id="ehbar" class="fill red"></div></div>
+            <p>HP: <b id="ehp">100</b></p>
+        </div>
+    </section>
+
+    <section class="arena" aria-label="Pen battle arena">
+        <div class="label left">YOU</div>
+        <div class="label right">COMPUTER</div>
+
+        <div id="playerPen" class="pen player">
+            <div class="pen-cap"></div>
+            <div class="clip"></div>
+            <div class="pen-body"></div>
+            <div class="grip"></div>
+            <div class="nose"></div>
+            <div class="tip"></div>
+        </div>
+
+        <div id="enemyPen" class="pen enemy red">
+            <div class="pen-cap"></div>
+            <div class="clip"></div>
+            <div class="pen-body"></div>
+            <div class="grip"></div>
+            <div class="nose"></div>
+            <div class="tip"></div>
+        </div>
+
+        <div id="message" class="message">READY?</div>
+    </section>
+
+    <div id="status" class="status" aria-live="polite">
+        Attack বাটনে ক্লিক করে খেলা শুরু করো!
+    </div>
+
+    <div class="controls">
+        <button id="attack" class="attack">⚔️ Attack</button>
+        <button id="power" class="power">💥 Power Hit</button>
+        <button id="defend" class="defend">🛡️ Defend</button>
+    </div>
+
+    <div class="soundrow">
+        <span id="soundStatus">🔊 Sound Effects: ON</span>
+        <button id="soundToggle">🔇 Sound বন্ধ</button>
+    </div>
+
+    <button id="restart" class="restart">🔄 Restart Game</button>
+
+    <p class="hint">
+        🎮 Attack: সাধারণ আক্রমণ | Power Hit: শক্তিশালী আঘাত |
+        Defend: আঘাতের ক্ষতি কমায়।<br>
+        🔊 প্রথমবার খেলার বাটনে ক্লিক করলে ব্রাউজারের সাউন্ড চালু হবে।
+    </p>
+</main>
+
+<script>
+(() => {
+    const $ = id => document.getElementById(id);
+
+    let playerHP = 100;
+    let enemyHP = 100;
+    let gameOver = false;
+    let busy = false;
+    let soundOn = true;
+    let audio = null;
+
+    const playerPen = $("playerPen");
+    const enemyPen = $("enemyPen");
+    const message = $("message");
+    const status = $("status");
+    const buttons = [$("attack"), $("power"), $("defend")];
+
+    // ব্রাউজারের Web Audio API দিয়ে সাউন্ড তৈরি
+    function initAudio() {
+        if (!soundOn) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) {
+            $("soundStatus").textContent = "এই ব্রাউজারে সাউন্ড সমর্থিত নয়";
+            return;
+        }
+        if (!audio) audio = new AudioContext();
+        if (audio.state === "suspended") audio.resume();
+    }
+
+    function tone(freq, duration, type = "sine", volume = 0.12, endFreq = null) {
+        if (!soundOn) return;
+        initAudio();
+        if (!audio) return;
+
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        const now = audio.currentTime;
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(Math.max(1, freq), now);
+
+        if (endFreq !== null) {
+            osc.frequency.exponentialRampToValueAtTime(
+                Math.max(1, endFreq), now + duration
+            );
+        }
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+    }
+
+    // আঘাতের ধাতব ক্লিক
+    function hitSound() {
+        tone(850, 0.07, "square", 0.10, 280);
+        setTimeout(() => tone(420, 0.10, "triangle", 0.08, 180), 45);
+    }
+
+    // শক্তিশালী আঘাত
+    function powerSound() {
+        tone(170, 0.20, "sawtooth", 0.15, 65);
+        setTimeout(() => tone(950, 0.12, "square", 0.10, 210), 100);
+        setTimeout(() => tone(120, 0.18, "triangle", 0.12, 55), 140);
+    }
+
+    // ডিফেন্স
+    function defendSound() {
+        tone(650, 0.12, "triangle", 0.10, 1100);
+        setTimeout(() => tone(900, 0.10, "sine", 0.08, 450), 90);
+    }
+
+    function updateUI() {
+        $("php").textContent = playerHP;
+        $("ehp").textContent = enemyHP;
+        $("phbar").style.width = playerHP + "%";
+        $("ehbar").style.width = enemyHP + "%";
+    }
+
+    function resetPens() {
+        playerPen.style.left = "27%";
+        playerPen.style.top = "95px";
+        playerPen.style.transform = "rotate(-42deg)";
+
+        enemyPen.style.left = "70%";
+        enemyPen.style.top = "95px";
+        enemyPen.style.transform = "rotate(42deg)";
+    }
+
+    function animate(move, enemyMove) {
+        playerPen.style.left = "39%";
+        enemyPen.style.left = "57%";
+
+        if (move === "power") {
+            playerPen.style.top = "72px";
+            playerPen.style.transform = "rotate(-105deg)";
+        } else if (move === "attack") {
+            playerPen.style.top = "83px";
+            playerPen.style.transform = "rotate(-78deg)";
+        } else {
+            playerPen.style.transform = "rotate(-18deg)";
+        }
+
+        if (enemyMove === "power") {
+            enemyPen.style.top = "72px";
+            enemyPen.style.transform = "rotate(105deg)";
+        } else if (enemyMove === "attack") {
+            enemyPen.style.top = "83px";
+            enemyPen.style.transform = "rotate(78deg)";
+        } else {
+            enemyPen.style.transform = "rotate(18deg)";
+        }
+    }
+
+    function random(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function play(move) {
+        if (gameOver || busy) return;
+
+        initAudio();
+        busy = true;
+        buttons.forEach(button => button.disabled = true);
+
+        const enemyMove = ["attack", "attack", "power", "defend"][random(0, 3)];
+
+        let playerDamage = 0;
+        let enemyDamage = 0;
+
+        if (move === "attack") playerDamage = random(10, 18);
+        if (move === "power") playerDamage = random(20, 30);
+
+        if (enemyMove === "attack") enemyDamage = random(8, 16);
+        if (enemyMove === "power") enemyDamage = random(16, 26);
+
+        if (move === "defend") {
+            playerDamage = 0;
+            enemyDamage = Math.floor(enemyDamage * 0.25);
+        }
+
+        if (enemyMove === "defend") {
+            playerDamage = Math.floor(playerDamage * 0.35);
+        }
+
+        animate(move, enemyMove);
+
+        if (move === "power" || enemyMove === "power") {
+            powerSound();
+        } else if (move === "defend") {
+            defendSound();
+        } else {
+            hitSound();
+        }
+
+        enemyHP = Math.max(0, enemyHP - playerDamage);
+        playerHP = Math.max(0, playerHP - enemyDamage);
+
+        updateUI();
+
+        message.textContent =
+            move === "defend" ? "BLOCK!" :
+            move === "power" ? "POWER HIT!" : "CLASH!";
+
+        status.textContent =
+            "তোমার Damage: " + playerDamage +
+            " | কম্পিউটারের Damage: " + enemyDamage;
+
+        if (playerHP === 0 || enemyHP === 0) {
+            gameOver = true;
+
+            if (playerHP === 0 && enemyHP === 0) {
+                message.textContent = "DRAW!";
+                status.textContent = "ম্যাচ ড্র হয়েছে!";
+            } else if (enemyHP === 0) {
+                message.textContent = "YOU WIN! 🏆";
+                status.textContent = "অভিনন্দন! তুমি জিতে গেছ!";
+                tone(523, 0.20, "sine", 0.12);
+                setTimeout(() => tone(659, 0.20, "sine", 0.12), 180);
+                setTimeout(() => tone(784, 0.35, "sine", 0.12), 360);
+            } else {
+                message.textContent = "YOU LOSE!";
+                status.textContent = "কম্পিউটার জিতেছে। আবার চেষ্টা করো!";
+                tone(300, 0.35, "triangle", 0.12, 120);
+            }
+
+            busy = false;
+            return;
+        }
+
+        setTimeout(() => {
+            resetPens();
+            message.textContent = "NEXT ROUND";
+            buttons.forEach(button => button.disabled = false);
+            busy = false;
+        }, 550);
+    }
+
+    $("attack").addEventListener("click", () => play("attack"));
+    $("power").addEventListener("click", () => play("power"));
+    $("defend").addEventListener("click", () => play("defend"));
+
+    $("soundToggle").addEventListener("click", () => {
+        soundOn = !soundOn;
+        $("soundStatus").textContent =
+            soundOn ? "🔊 Sound Effects: ON" : "🔇 Sound Effects: OFF";
+        $("soundToggle").textContent =
+            soundOn ? "🔇 Sound বন্ধ" : "🔊 Sound চালু";
+
+        if (soundOn) {
+            initAudio();
+            hitSound();
+        }
+    });
+
+    $("restart").addEventListener("click", () => {
+        playerHP = 100;
+        enemyHP = 100;
+        gameOver = false;
+        busy = false;
+
+        resetPens();
+        updateUI();
+
+        message.textContent = "READY?";
+        status.textContent = "Attack বাটনে ক্লিক করে খেলা শুরু করো!";
+        buttons.forEach(button => button.disabled = false);
+    });
+
+    updateUI();
+})();
+</script>
+</body>
+</html>
+```
